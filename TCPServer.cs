@@ -13,6 +13,7 @@ namespace CoreliumSocketAPI
         public event Action<CoreliumSocket> Accepted;
         public event Action<CoreliumSocket, byte[]> Received;
         public event Action<CoreliumSocket, string> NameReceived;
+        public event Action<CoreliumSocket> Disconnected;
 
         private readonly string ip;
         private readonly int port;
@@ -51,6 +52,9 @@ namespace CoreliumSocketAPI
             return this;
         }
 
+        public void Send(byte[] buffer) => sockets.ForEach(x => x.Send(buffer));
+        public void Send(string message) => sockets.ForEach(x => x.Send(message));
+
         public TCPServer SetTimeout(int interval)
         {
             sockets.ForEach(x => x.SetTimeout(interval));
@@ -82,6 +86,7 @@ namespace CoreliumSocketAPI
                     Received?.Invoke(s, ne);
                 }
             };
+            s.Disconnected += () => Disconnected?.Invoke(s);
             sockets.Add(s);
 
             Accepted?.Invoke(s);

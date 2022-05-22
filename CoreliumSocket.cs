@@ -8,8 +8,10 @@ namespace CoreliumSocketAPI
 {
     public class CoreliumSocket
     {
-        public string Name { get; set; }
         public event Action<byte[], int> Received;
+        public event Action Disconnected;
+
+        public string Name { get; set; }
         private int bufferSize = 4096;
         private byte[] buffer = new byte[4096];
         public readonly Socket socket;
@@ -69,10 +71,23 @@ namespace CoreliumSocketAPI
 
         private void OnReceive(IAsyncResult result)
         {
-            Received?.Invoke(buffer, socket.EndReceive(result));
-            buffer = new byte[buffer.Length];
-
-            StartReceive();
+            if (!socket.Connected)
+            {
+                Disconnected?.Invoke();
+                return;
+            }
+            try
+            {
+                int received = socket.EndReceive(result);
+                Received?.Invoke(buffer, received);
+                buffer = new byte[buffer.Length];
+                StartReceive();
+            }
+            catch (Exception)
+            {
+                buffer = new byte[buffer.Length];
+                Disconnected?.Invoke();
+            }
         }
 
         private struct SocketInfo

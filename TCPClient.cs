@@ -31,6 +31,7 @@ namespace CoreliumSocketAPI
             server.socket.BeginConnect(point, (a) =>
             {
                 server.socket.EndConnect(a);
+                server.StartReceive();
                 server.Send("cname" + name);
                 Connected?.Invoke();
                 isConnected = true;
@@ -38,8 +39,13 @@ namespace CoreliumSocketAPI
             return this;
         }
 
+        public void Send(byte[] buffer) =>
+            server.Send(buffer);
+        public void Send(string message) =>
+            server.Send(message);
+
         public void Stop() =>
-            server.StartReceive().socket.BeginDisconnect(false, (a) => server.socket.EndDisconnect(a), null);
+            server.socket.BeginDisconnect(false, (a) => server.socket.EndDisconnect(a), null);
 
         public bool IsConnected() =>
             isConnected;
