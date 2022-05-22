@@ -8,7 +8,7 @@ using System.Threading;
 
 namespace CoreliumSocketAPI
 {
-    public class TCPServer
+    public class TCPServer : ISocketService
     {
         public event Action<CoreliumSocket> Accepted;
         public event Action<CoreliumSocket, byte[]> Received;
@@ -16,7 +16,7 @@ namespace CoreliumSocketAPI
 
         private readonly string ip;
         private readonly int port;
-        private readonly Socket socket;
+        private readonly CoreliumSocket socket;
         private bool isRunning = false;
         private int bufferSize;
 
@@ -28,8 +28,8 @@ namespace CoreliumSocketAPI
             this.bufferSize = bufferSize;
 
             var point = new IPEndPoint(IPAddress.Parse(ip), port);
-            socket = new Socket(point.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            socket.Bind(point);
+            socket = new CoreliumSocket(bufferSize, SType.TCP, ip, port);
+            socket.socket.Bind(point);
 
             sockets = new();
         }
@@ -42,21 +42,20 @@ namespace CoreliumSocketAPI
         public CoreliumSocket GetSocket(string name) => 
             sockets.FirstOrDefault(x => x.Name == name);
 
-        public TCPServer Start()
+        public ISocketService Start()
         {
             isRunning = true;
-            socket.Listen(0);
+            socket.socket.Listen(0);
 
-            socket.BeginAccept(OnAccept, null);
-
+            socket.socket.BeginAccept(OnAccept, null);
             return this;
         }
 
         public TCPServer SetTimeout(int interval)
         {
             sockets.ForEach(x => x.SetTimeout(interval));
-            socket.ReceiveTimeout = interval;
-            socket.SendTimeout = interval;
+            socket.socket.ReceiveTimeout = interval;
+            socket.socket.SendTimeout = interval;
             return this;
         }
         
@@ -64,7 +63,7 @@ namespace CoreliumSocketAPI
         {
             if (!isRunning)
                 return;
-            var s = new CoreliumSocket(socket.EndAccept(result), bufferSize)
+            var s = new CoreliumSocket(socket.socket.EndAccept(result), bufferSize)
                 .SetBufferSize(bufferSize)
                 .StartReceive();
             s.Received += (a, b) =>
@@ -87,8 +86,13 @@ namespace CoreliumSocketAPI
 
             Accepted?.Invoke(s);
 
-            socket.BeginAccept(OnAccept, null);
+            socket.socket.BeginAccept(OnAccept, null);
         }
+
+        public CoreliumSocket GetServer() => socket;
+
+        public bool IsConnected() =>
+            isRunning;
 
         public void Stop()
         {
